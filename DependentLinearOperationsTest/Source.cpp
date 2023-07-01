@@ -1,5 +1,11 @@
 #include "NN.h"
 
+/*
+TODO:
+- make relu active when < 0 to allow for a zero weight and bias as initializers
+-- make a new matrix to store relu output
+*/
+
 int main()
 {
 	const float LEARNING_RATE = 0.0004f;
@@ -17,7 +23,7 @@ int main()
 			nn.Forward();
 
 			for (int i = 0; i < Layer::size; i++)
-				nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[(i + 3) % Layer::size] + i;
+				nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[(i * 5 + 3) % Layer::size] + i;
 				//nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[i];
 			nn.Backward();
 		}
