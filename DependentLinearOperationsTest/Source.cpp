@@ -2,9 +2,10 @@
 
 /*
 TODO:
-- pass matrix references during forward and backward so no need to copy
+- pass tensor references during forward and backward so no need to copy
 - allow custom sizes for layers and allow custom layers
 - allow layers to use other layers
+- layer norm
 */
 
 int main()
