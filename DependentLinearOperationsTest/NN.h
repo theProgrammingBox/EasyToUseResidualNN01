@@ -3,9 +3,7 @@
 
 struct Layer
 {
-	static const int size = 8;
-	static const float alpha;
-	static const float beta;
+	static const int size = 2;
 	
 	float inputTensor[size];
 	float weightTensor[size * size];
@@ -30,6 +28,9 @@ struct Layer
 		memset(biasTensor, 0, sizeof(float) * size);
 		for (int i = 0; i < size; i++)
 			weightTensor[i * size + i] = 1;
+		
+		memset(weightGradientTensor, 0, sizeof(float) * size * size);
+		memset(biasGradientTensor, 0, sizeof(float) * size);
 	}
 
 	void ZeroForward()
@@ -46,10 +47,13 @@ struct Layer
 		memset(inputGradientTensor, 0, sizeof(float) * size);
 	}
 
-	void ApplyGradient(float learningRate)
+	void Update(float learningRate)
 	{
-		// sum
-		// reset
+		cpuSaxpy(size, learningRate, biasGradientTensor, biasTensor);
+		cpuSaxpy(size * size, learningRate, weightGradientTensor, weightTensor);
+		
+		memset(weightGradientTensor, 0, sizeof(float) * size * size);
+		memset(biasGradientTensor, 0, sizeof(float) * size);
 	}
 
 	float* GetInputTensor()
@@ -64,7 +68,7 @@ struct Layer
 
 	float* GetOutputGradientTensor()
 	{
-		return productActivationGradientTensor;
+		return residualSumGradientTensor;
 	}
 
 	float* GetInputGradientTensor()
@@ -77,44 +81,44 @@ struct Layer
 		cpuSgemmStridedBatched(
 			false, false,
 			size, 1, size,
-			&alpha,
+			&ONEF,
 			weightTensor, size, size * size,
-			GetInputTensor(), size, size,
-			&beta,
+			inputTensor, size, size,
+			&ONEF,
 			productActivationTensor, size, size,
 			1);
-		cpuSaxpy(size, 1, biasTensor, productActivationTensor);
+		cpuSaxpy(size, ONEF, biasTensor, productActivationTensor);
 		cpuRelu(productActivationTensor, size);
 		
 		// residual
-		memcpy(GetOutputTensor(), GetInputTensor(), sizeof(float) * size);
-		cpuSaxpy(size, 1, productActivationTensor, GetOutputTensor());
+		cpuSaxpy(size, ONEF, inputTensor, residualSumTensor);
+		cpuSaxpy(size, ONEF, productActivationTensor, residualSumTensor);
 	}
 
 	void Backward()
 	{
 		// residual
-		memcpy(GetInputGradientTensor(), GetOutputGradientTensor(), sizeof(float) * size);
-		memcpy(productActivationGradientTensor, GetOutputGradientTensor(), sizeof(float) * size);
+		cpuSaxpy(size, ONEF, residualSumGradientTensor, inputGradientTensor);
+		cpuSaxpy(size, ONEF, residualSumGradientTensor, productActivationGradientTensor);
 		
 		cpuReluGradient(productActivationGradientTensor, productActivationTensor, size);
-		cpuSaxpy(size, 1, productActivationGradientTensor, biasGradientTensor);
+		cpuSaxpy(size, ONEF, productActivationGradientTensor, biasGradientTensor);
 		cpuSgemmStridedBatched(
 			false, true,
 			size, size, 1,
-			&alpha,
+			&ONEF,
 			productActivationGradientTensor, size, size,
 			inputTensor, size, size,
-			&beta,
+			&ONEF,
 			weightGradientTensor, size, size * size,
 			1);
 		cpuSgemmStridedBatched(
 			true, false,
 			size, 1, size,
-			&alpha,
+			&ONEF,
 			weightTensor, size, size * size,
 			productActivationGradientTensor, size, size,
-			&beta,
+			&ONEF,
 			inputGradientTensor, size, size,
 			1);
 	}
@@ -125,26 +129,34 @@ struct Layer
 		PrintMatrixf32(weightTensor, size, size, "Weight Tensor");
 		PrintMatrixf32(biasTensor, 1, size, "Bias Tensor");
 		PrintMatrixf32(productActivationTensor, 1, size, "Output Tensor");
+		PrintMatrixf32(residualSumTensor, 1, size, "Residual Sum Tensor");
+		printf("\n");
 	}
 
 	void PrintGradients()
 	{
+		PrintMatrixf32(residualSumGradientTensor, 1, size, "Residual Sum Gradient Tensor");
 		PrintMatrixf32(productActivationGradientTensor, 1, size, "Output Gradient Tensor");
 		PrintMatrixf32(weightGradientTensor, size, size, "Weight Gradient Tensor");
 		PrintMatrixf32(biasGradientTensor, 1, size, "Bias Gradient Tensor");
 		PrintMatrixf32(inputGradientTensor, 1, size, "Input Gradient Tensor");
+		printf("\n");
+	}
+
+	void PrintParams()
+	{
+		PrintMatrixf32(weightTensor, size, size, "Weight Tensor");
+		PrintMatrixf32(biasTensor, 1, size, "Bias Tensor");
+		printf("\n");
 	}
 };
-
-const float Layer::alpha = 1;
-const float Layer::beta = 0;
 
 struct NN
 {
 	std::vector<Layer> layers;
 
 	float inputTensor[Layer::size];
-	float productActivationTensor[Layer::size];
+	float outputTensor[Layer::size];
 	
 	float productActivationGradientTensor[Layer::size];
 	float inputGradientTensor[Layer::size];
@@ -154,51 +166,88 @@ struct NN
 		layers.resize(layersCount);
 	}
 
+	void ZeroForward()
+	{
+		for (int i = 0; i < layers.size(); ++i)
+			layers[i].ZeroForward();
+	}
+
+	void ZeroBackward()
+	{
+		for (int i = 0; i < layers.size(); ++i)
+			layers[i].ZeroBackward();
+	}
+
+	void Update(float learningRate)
+	{
+		for (int i = 0; i < layers.size(); ++i)
+			layers[i].Update(learningRate);
+	}
+
+	float* GetInputTensor()
+	{
+		return inputTensor;
+	}
+
+	float* GetOutputTensor()
+	{
+		return outputTensor;
+	}
+
+	float* GetOutputGradientTensor()
+	{
+		return productActivationGradientTensor;
+	}
+
+	float* GetInputGradientTensor()
+	{
+		return inputGradientTensor;
+	}
+
 	void Forward()
 	{
-		memcpy(layers[0].GetInputTensor(), inputTensor, sizeof(float) * Layer::size);
+		ZeroForward();
+		
+		memcpy(layers.front().GetInputTensor(), GetInputTensor(), sizeof(float) * Layer::size);
 		for (int i = 0; i < layers.size() - 1; ++i)
 		{
 			layers[i].Forward();
 			memcpy(layers[i + 1].GetInputTensor(), layers[i].GetOutputTensor(), sizeof(float) * Layer::size);
 		}
 		layers.back().Forward();
-		memcpy(productActivationTensor, layers.back().GetOutputTensor(), sizeof(float) * Layer::size);
+		memcpy(GetOutputTensor(), layers.back().GetOutputTensor(), sizeof(float) * Layer::size);
 	}
 
 	void Backward()
 	{
-		cpuSaxpy(Layer::size, -1, productActivationTensor, productActivationGradientTensor);
+		cpuSaxpy(Layer::size, -1, GetOutputTensor(), GetOutputGradientTensor());
+		ZeroBackward();
 		
-		// residual
-		memcpy(layers[layers.size() - 1].productActivationGradientTensor, productActivationGradientTensor, sizeof(float) * Layer::size);
-		memcpy(layers[layers.size() - 1].inputGradientTensor, productActivationGradientTensor, sizeof(float) * Layer::size);
-		layers[layers.size() - 1].Backward();
-		
+		memcpy(layers.back().GetOutputGradientTensor(), GetOutputGradientTensor(), sizeof(float) * Layer::size);
+		layers.back().Backward();
 		for (int i = layers.size() - 2; i >= 0; --i)
 		{
-			// residual
-			memcpy(layers[i].productActivationGradientTensor, layers[i + 1].inputGradientTensor, sizeof(float) * Layer::size);
-			memcpy(layers[i].inputGradientTensor, layers[i + 1].inputGradientTensor, sizeof(float) * Layer::size);
+			memcpy(layers[i].GetOutputGradientTensor(), layers[i + 1].GetInputGradientTensor(), sizeof(float) * Layer::size);
 			layers[i].Backward();
 		}
-
-		memcpy(inputGradientTensor, layers[0].inputGradientTensor, sizeof(float) * Layer::size);
+		memcpy(GetInputGradientTensor(), layers.front().GetInputGradientTensor(), sizeof(float) * Layer::size);
 	}
 
 	void Print()
 	{
-		PrintMatrixf32(inputTensor, 1, Layer::size, "Input Tensor");
 		for (int i = 0; i < layers.size(); ++i)
 			layers[i].Print();
-		PrintMatrixf32(productActivationTensor, 1, Layer::size, "Output Tensor");
 	}
 
 	void PrintGradients()
 	{
-		PrintMatrixf32(productActivationGradientTensor, 1, Layer::size, "Output Gradient Tensor");
 		for (int i = 0; i < layers.size(); ++i)
 			layers[i].PrintGradients();
-		PrintMatrixf32(inputGradientTensor, 1, Layer::size, "Input Gradient Tensor");
+	}
+
+	void PrintParams()
+	{
+		for (int i = 0; i < layers.size(); ++i)
+			layers[i].PrintParams();
 	}
 };

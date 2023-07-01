@@ -2,6 +2,8 @@
 #include <iostream>
 #include <vector>
 
+const float ONEF = 1.0f;
+
 void cpuSgemmStridedBatched(
 	bool transB, bool transA,
 	int CCols, int CRows, int AColsBRows,
