@@ -2,11 +2,11 @@
 
 int main()
 {
-	const float LEARNING_RATE = 0.01f;
+	const float LEARNING_RATE = 0.0004f;
 	const int BATCH_SIZE = 8;
-	const int EPISODES = 100;
+	const int EPISODES = 1000;
 	
-	NN nn(1);
+	NN nn(2);
 
 	for (int episode = 0; episode < EPISODES; episode++)
 	{
@@ -17,14 +17,14 @@ int main()
 			nn.Forward();
 
 			for (int i = 0; i < Layer::size; i++)
-				nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[(i + 1) % Layer::size] + 10;
+				nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[(i + 3) % Layer::size] + i;
 				//nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[i];
 			nn.Backward();
 		}
 		nn.Update(LEARNING_RATE / BATCH_SIZE);
-		nn.PrintParams();
 	}
 	nn.Print();
+	nn.PrintGradients();
 
 	return 0;
 }

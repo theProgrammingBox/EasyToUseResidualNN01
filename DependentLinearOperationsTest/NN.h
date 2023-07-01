@@ -3,7 +3,7 @@
 
 struct Layer
 {
-	static const int size = 2;
+	static const int size = 8;
 	
 	float inputTensor[size];
 	float weightTensor[size * size];
