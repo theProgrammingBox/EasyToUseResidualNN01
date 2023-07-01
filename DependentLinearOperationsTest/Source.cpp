@@ -8,9 +8,9 @@ TODO:
 
 int main()
 {
-	const float LEARNING_RATE = 0.0004f;
-	const int BATCH_SIZE = 8;
-	const int EPISODES = 1000;
+	const float LEARNING_RATE = 0.002f;
+	const int BATCH_SIZE = 1;
+	const int EPISODES = 10;
 
 	float UPDATE_RATE = LEARNING_RATE / BATCH_SIZE;
 	

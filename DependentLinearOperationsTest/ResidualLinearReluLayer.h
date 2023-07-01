@@ -26,8 +26,6 @@ struct ResidualLinearReluLayer
 	{
 		memset(weightTensor, 0, sizeof(float) * size * size);
 		memset(biasTensor, 0, sizeof(float) * size);
-		for (int i = 0; i < size; i++)
-			weightTensor[i * size + i] = 1.0f;
 
 		memset(weightGradientTensor, 0, sizeof(float) * size * size);
 		memset(biasGradientTensor, 0, sizeof(float) * size);
