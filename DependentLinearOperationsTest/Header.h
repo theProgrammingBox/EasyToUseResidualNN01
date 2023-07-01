@@ -3,6 +3,7 @@
 #include <vector>
 
 const float ONEF = 1.0f;
+const float MINUS_ONEF = -1.0f;
 
 void cpuSgemmStridedBatched(
 	bool transB, bool transA,
@@ -30,22 +31,37 @@ void cpuSgemmStridedBatched(
 	}
 }
 
-void cpuRelu(float* data, int size)
-{
-	for (int i = 0; i < size; i++)
-		data[i] = data[i] > 0 ? data[i] : 0;
-}
-
-void cpuReluGradient(float* gradient, float* data, int size)
-{
-	for (int i = 0; i < size; i++)
-		gradient[i] = data[i] > 0 ? gradient[i] : 0;
-}
-
-void cpuSaxpy(int n, float a, float* x, float* y)
+void cpuReluForward(
+	int n,
+	const float* alpha,
+	const float* x,
+	const float* beta,
+	float* y)
 {
 	for (int i = 0; i < n; i++)
-		y[i] = a * x[i] + y[i];
+		y[i] = *beta * y[i] + (*alpha * x[i] >= 0 ? *alpha * x[i] : 0);
+}
+
+void cpuReluBackward(
+	int n,
+	const float* alpha,
+	const float* dy,
+	const float* x,
+	const float* beta,
+	float* dx)
+{
+	for (int i = 0; i < n; i++)
+		dx[i] = *beta * dx[i] + (*alpha * x[i] >= 0 ? *alpha * dy[i] : 0);
+}
+
+void cpuSaxpy(
+	int n,
+	const float* alpha,
+	const float* x, int incx,
+	float* y, int incy)
+{
+	for (int i = 0; i < n; i++)
+		y[i * incy] = *alpha * x[i * incx] + y[i * incy];
 }
 
 void PrintMatrixf32(float* arr, uint32_t rows, uint32_t cols, const char* label)

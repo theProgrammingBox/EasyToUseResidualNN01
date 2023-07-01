@@ -2,8 +2,6 @@
 
 /*
 TODO:
-- make relu active when < 0 to allow for a zero weight and bias as initializers
--- make a new matrix to store relu output
 */
 
 int main()
@@ -11,6 +9,8 @@ int main()
 	const float LEARNING_RATE = 0.0004f;
 	const int BATCH_SIZE = 8;
 	const int EPISODES = 1000;
+
+	float UPDATE_RATE = LEARNING_RATE / BATCH_SIZE;
 	
 	NN nn(2);
 
@@ -27,10 +27,10 @@ int main()
 				//nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[i];
 			nn.Backward();
 		}
-		nn.Update(LEARNING_RATE / BATCH_SIZE);
+		nn.Update(&UPDATE_RATE);
 	}
-	nn.Print();
-	nn.PrintGradients();
+	nn.PrintForward();
+	nn.PrintBackward();
 
 	return 0;
 }
