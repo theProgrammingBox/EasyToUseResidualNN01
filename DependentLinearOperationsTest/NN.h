@@ -4,68 +4,79 @@
 
 struct NN
 {
-	std::vector<ResidualLinearReluLayer> layers;
+	int inputSize;
 	
-	NN(int layersCount)
+	std::vector<Layer*> layers;
+
+	NN(int inputSize)
+		: inputSize(inputSize)
 	{
-		layers.resize(layersCount);
 	}
 
-	void ZeroForward()
+	~NN()
 	{
-		for (int i = 0; i < layers.size(); ++i)
-			layers[i].ZeroForward();
+		for (Layer* layer : layers)
+			delete layer;
 	}
 
-	void ZeroBackward()
+	void AddLayer(Layer* layer)
 	{
-		for (int i = 0; i < layers.size(); ++i)
-			layers[i].ZeroBackward();
+		layers.emplace_back(layer);
+	}
+
+	void Forward(const float* inputTensor)
+	{
+		for (Layer* layer : layers)
+			layer->ZeroForward();
+		
+		layers.front()->Forward(inputTensor);
+		for (int i = 1; i < layers.size(); ++i)
+			layers[i]->Forward(layers[i - 1]->outputTensor);
+	}
+
+	void Backward(float* outputGradientTensor, const float* inputTensor)
+	{
+		cpuSaxpy(layers.back()->outputSize, &MINUS_ONEF, layers.back()->outputTensor, 1, outputGradientTensor, 1);
+		
+		for (Layer* layer : layers)
+			layer->ZeroBackward();
+
+		if (layers.size() >= 2)
+		{
+			layers.back()->Backward(outputGradientTensor, layers[layers.size() - 2]->outputTensor);
+			for (int i = layers.size() - 2; i > 0; --i)
+				layers[i]->Backward(layers[i + 1]->inputGradientTensor, layers[i - 1]->outputTensor);
+			layers.front()->Backward(layers[1]->inputGradientTensor, inputTensor);
+		}
+		else
+		{
+			layers.front()->Backward(outputGradientTensor, inputTensor);
+		}
 	}
 
 	void Update(float* learningRate)
 	{
-		for (int i = 0; i < layers.size(); ++i)
-			layers[i].Update(learningRate);
-	}
-
-	void Forward(float* inputTensor)
-	{
-		ZeroForward();
-		
-		layers.front().Forward(inputTensor);
-		for (int i = 1; i < layers.size(); ++i)
-			layers[i].Forward(layers[i - 1].GetOutputTensor());
-	}
-
-	void Backward(float* outputGradientTensor, float* inputTensor)
-	{
-		cpuSaxpy(ResidualLinearReluLayer::size, &MINUS_ONEF, layers.back().GetOutputTensor(), 1, outputGradientTensor, 1);
-		ZeroBackward();
-
-		layers.back().Backward(outputGradientTensor, layers[layers.size() - 2].GetOutputTensor());
-		for (int i = layers.size() - 2; i > 0; --i)
-			layers[i].Backward(layers[i + 1].GetInputGradientTensor(), layers[i - 1].GetOutputTensor());
-		layers.front().Backward(layers[1].GetInputGradientTensor(), inputTensor);
+		for (Layer* layer : layers)
+			layer->Update(learningRate);
 	}
 
 	void PrintForward(float* inputTensor)
 	{
-		PrintMatrixf32(inputTensor, 1, ResidualLinearReluLayer::size, "Input Tensor");
-		for (int i = 0; i < layers.size(); ++i)
-			layers[i].PrintForward();
+		PrintMatrixf32(inputTensor, 1, inputSize, "Input Tensor");
+		for (Layer* layer : layers)
+			layer->PrintForward();
 	}
 
 	void PrintBackward(float* outputGradientTensor)
 	{
-		PrintMatrixf32(outputGradientTensor, 1, ResidualLinearReluLayer::size, "Output Gradient Tensor");
-		for (int i = 0; i < layers.size(); ++i)
-			layers[i].PrintBackward();
+		PrintMatrixf32(outputGradientTensor, 1, layers.back()->outputSize, "Output Gradient Tensor");
+		for (Layer* layer : layers)
+			layer->PrintBackward();
 	}
 
 	void PrintParams()
 	{
-		for (int i = 0; i < layers.size(); ++i)
-			layers[i].PrintParams();
+		for (Layer* layer : layers)
+			layer->PrintParams();
 	}
 };

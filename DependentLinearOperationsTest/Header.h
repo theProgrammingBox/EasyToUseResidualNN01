@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <vector>
+#include <cassert>
 
 const float ONEF = 1.0f;
 const float MINUS_ONEF = -1.0f;
@@ -9,8 +10,8 @@ void cpuSgemmStridedBatched(
 	bool transB, bool transA,
 	int CCols, int CRows, int AColsBRows,
 	const float* alpha,
-	float* B, int ColsB, int SizeB,
-	float* A, int ColsA, int SizeA,
+	const float* B, int ColsB, int SizeB,
+	const float* A, int ColsA, int SizeA,
 	const float* beta,
 	float* C, int ColsC, int SizeC,
 	int batchCount)

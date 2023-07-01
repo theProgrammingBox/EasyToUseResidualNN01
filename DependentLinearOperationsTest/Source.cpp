@@ -15,21 +15,27 @@ int main()
 
 	float UPDATE_RATE = LEARNING_RATE / BATCH_SIZE;
 
-	float inputTensor[ResidualLinearReluLayer::size];
-	float outputGradientTensor[ResidualLinearReluLayer::size];
+	const int inputSize = 8;
+	float inputTensor[inputSize];
+	float outputGradientTensor[inputSize];
 	
-	NN nn(2);
+	NN nn(inputSize);
+	nn.AddLayer(new ResidualLinearReluLayer(inputSize));
+	nn.AddLayer(new ResidualLinearReluLayer(inputSize));
 
+	assert(nn.inputSize == inputSize);
+	assert(nn.layers.back()->outputSize == inputSize);
+	
 	for (int episode = 0; episode < EPISODES; episode++)
 	{
 		for (int batch = 0; batch < BATCH_SIZE; batch++)
 		{
-			for (int i = 0; i < ResidualLinearReluLayer::size; i++)
+			for (int i = 0; i < inputSize; i++)
 				inputTensor[i] = i + 1;
 			nn.Forward(inputTensor);
 
-			for (int i = 0; i < ResidualLinearReluLayer::size; i++)
-				outputGradientTensor[i] = inputTensor[(i * 5 + 3) % ResidualLinearReluLayer::size] + i;
+			for (int i = 0; i < inputSize; i++)
+				outputGradientTensor[i] = inputTensor[(i * 5 + 3) % inputSize] + i;
 			nn.Backward(outputGradientTensor, inputTensor);
 		}
 		nn.Update(&UPDATE_RATE);
