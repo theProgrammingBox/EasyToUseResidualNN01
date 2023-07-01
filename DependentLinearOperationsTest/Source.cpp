@@ -2,6 +2,7 @@
 
 /*
 TODO:
+- pass matrix references during forward and backward so no need to copy
 - allow custom sizes for layers and allow custom layers
 - allow layers to use other layers
 */
@@ -26,7 +27,6 @@ int main()
 
 			for (int i = 0; i < ResidualLinearReluLayer::size; i++)
 				nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[(i * 5 + 3) % ResidualLinearReluLayer::size] + i;
-				//nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[i];
 			nn.Backward();
 		}
 		nn.Update(&UPDATE_RATE);

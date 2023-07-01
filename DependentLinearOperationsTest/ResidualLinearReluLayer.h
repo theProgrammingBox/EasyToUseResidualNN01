@@ -1,7 +1,7 @@
 #pragma once
-#include "Header.h"
+#include "Layer.h"
 
-struct ResidualLinearReluLayer
+struct ResidualLinearReluLayer : Layer
 {
 	static const int size = 8;
 
@@ -26,7 +26,7 @@ struct ResidualLinearReluLayer
 	{
 		memset(weightTensor, 0, sizeof(float) * size * size);
 		memset(biasTensor, 0, sizeof(float) * size);
-
+		
 		memset(weightGradientTensor, 0, sizeof(float) * size * size);
 		memset(biasGradientTensor, 0, sizeof(float) * size);
 	}
@@ -124,7 +124,7 @@ struct ResidualLinearReluLayer
 		PrintMatrixf32(inputTensor, 1, size, "Input Tensor");
 		PrintMatrixf32(weightTensor, size, size, "Weight Tensor");
 		PrintMatrixf32(biasTensor, 1, size, "Bias Tensor");
-		PrintMatrixf32(productTensor, 1, size, "Output Tensor");
+		PrintMatrixf32(productTensor, 1, size, "Product Tensor");
 		PrintMatrixf32(residualSumTensor, 1, size, "Residual Sum Tensor");
 		printf("\n");
 	}
@@ -132,7 +132,7 @@ struct ResidualLinearReluLayer
 	void PrintBackward()
 	{
 		PrintMatrixf32(residualSumGradientTensor, 1, size, "Residual Sum Gradient Tensor");
-		PrintMatrixf32(productGradientTensor, 1, size, "Output Gradient Tensor");
+		PrintMatrixf32(productGradientTensor, 1, size, "Product Gradient Tensor");
 		PrintMatrixf32(weightGradientTensor, size, size, "Weight Gradient Tensor");
 		PrintMatrixf32(biasGradientTensor, 1, size, "Bias Gradient Tensor");
 		PrintMatrixf32(inputGradientTensor, 1, size, "Input Gradient Tensor");
