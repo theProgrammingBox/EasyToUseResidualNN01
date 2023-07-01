@@ -4,14 +4,12 @@
 struct ResidualLinearReluLayer : Layer
 {
 	static const int size = 8;
-
-	float inputTensor[size];
+	
 	float weightTensor[size * size];
 	float biasTensor[size];
 	float productTensor[size];
 	float residualSumTensor[size];
-
-	float residualSumGradientTensor[size];
+	
 	float productGradientTensor[size];
 	float weightGradientTensor[size * size];
 	float biasGradientTensor[size];
@@ -33,14 +31,12 @@ struct ResidualLinearReluLayer : Layer
 
 	void ZeroForward()
 	{
-		memset(inputTensor, 0, sizeof(float) * size);
 		memset(productTensor, 0, sizeof(float) * size);
 		memset(residualSumTensor, 0, sizeof(float) * size);
 	}
 
 	void ZeroBackward()
 	{
-		memset(residualSumGradientTensor, 0, sizeof(float) * size);
 		memset(productGradientTensor, 0, sizeof(float) * size);
 		memset(inputGradientTensor, 0, sizeof(float) * size);
 	}
@@ -54,19 +50,9 @@ struct ResidualLinearReluLayer : Layer
 		memset(biasGradientTensor, 0, sizeof(float) * size);
 	}
 
-	float* GetInputTensor()
-	{
-		return inputTensor;
-	}
-
 	float* GetOutputTensor()
 	{
 		return residualSumTensor;
-	}
-
-	float* GetOutputGradientTensor()
-	{
-		return residualSumGradientTensor;
 	}
 
 	float* GetInputGradientTensor()
@@ -74,7 +60,7 @@ struct ResidualLinearReluLayer : Layer
 		return inputGradientTensor;
 	}
 
-	void Forward()
+	void Forward(float* inputTensor)
 	{
 		cpuSgemmStridedBatched(
 			false, false,
@@ -92,11 +78,11 @@ struct ResidualLinearReluLayer : Layer
 		cpuReluForward(size, &ONEF, productTensor, &ONEF, residualSumTensor);
 	}
 
-	void Backward()
+	void Backward(float* outputTensor, float* inputTensor)
 	{
 		// residual
-		cpuSaxpy(size, &ONEF, residualSumGradientTensor, 1, inputGradientTensor, 1);
-		cpuReluBackward(size, &ONEF, residualSumGradientTensor, productTensor, &ONEF, productGradientTensor);
+		cpuSaxpy(size, &ONEF, outputTensor, 1, inputGradientTensor, 1);
+		cpuReluBackward(size, &ONEF, outputTensor, productTensor, &ONEF, productGradientTensor);
 
 		cpuSaxpy(size, &ONEF, productGradientTensor, 1, biasGradientTensor, 1);
 		cpuSgemmStridedBatched(
@@ -121,7 +107,6 @@ struct ResidualLinearReluLayer : Layer
 
 	void PrintForward()
 	{
-		PrintMatrixf32(inputTensor, 1, size, "Input Tensor");
 		PrintMatrixf32(weightTensor, size, size, "Weight Tensor");
 		PrintMatrixf32(biasTensor, 1, size, "Bias Tensor");
 		PrintMatrixf32(productTensor, 1, size, "Product Tensor");
@@ -131,7 +116,6 @@ struct ResidualLinearReluLayer : Layer
 
 	void PrintBackward()
 	{
-		PrintMatrixf32(residualSumGradientTensor, 1, size, "Residual Sum Gradient Tensor");
 		PrintMatrixf32(productGradientTensor, 1, size, "Product Gradient Tensor");
 		PrintMatrixf32(weightGradientTensor, size, size, "Weight Gradient Tensor");
 		PrintMatrixf32(biasGradientTensor, 1, size, "Bias Gradient Tensor");

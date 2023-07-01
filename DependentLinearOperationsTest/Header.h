@@ -70,7 +70,7 @@ void PrintMatrixf32(float* arr, uint32_t rows, uint32_t cols, const char* label)
 	for (uint32_t i = 0; i < rows; i++)
 	{
 		for (uint32_t j = 0; j < cols; j++)
-			printf("%8.3f ", arr[i * cols + j]);
+			printf("%8.4f ", arr[i * cols + j]);
 		printf("\n");
 	}
 	printf("\n");
