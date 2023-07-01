@@ -2,6 +2,8 @@
 
 /*
 TODO:
+- allow custom sizes for layers and allow custom layers
+- allow layers to use other layers
 */
 
 int main()
@@ -18,12 +20,12 @@ int main()
 	{
 		for (int batch = 0; batch < BATCH_SIZE; batch++)
 		{
-			for (int i = 0; i < Layer::size; i++)
+			for (int i = 0; i < ResidualLinearReluLayer::size; i++)
 				nn.GetInputTensor()[i] = i + 1;
 			nn.Forward();
 
-			for (int i = 0; i < Layer::size; i++)
-				nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[(i * 5 + 3) % Layer::size] + i;
+			for (int i = 0; i < ResidualLinearReluLayer::size; i++)
+				nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[(i * 5 + 3) % ResidualLinearReluLayer::size] + i;
 				//nn.GetOutputGradientTensor()[i] = nn.GetInputTensor()[i];
 			nn.Backward();
 		}
