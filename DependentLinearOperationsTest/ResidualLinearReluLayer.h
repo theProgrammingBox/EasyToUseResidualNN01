@@ -21,6 +21,11 @@ struct ResidualLinearReluLayer : Layer
 		productGradientTensor = new float[inputSize];
 		weightGradientTensor = new float[inputSize];
 		biasGradientTensor = new float[inputSize];
+		
+		memset(weightTensor, 0, sizeof(float) * inputSize * inputSize);
+		memset(biasTensor, 0, sizeof(float) * inputSize);
+		memset(weightGradientTensor, 0, sizeof(float) * inputSize * inputSize);
+		memset(biasGradientTensor, 0, sizeof(float) * inputSize);
 	}
 
 	virtual ~ResidualLinearReluLayer() override
@@ -32,15 +37,6 @@ struct ResidualLinearReluLayer : Layer
 		delete[] productGradientTensor;
 		delete[] weightGradientTensor;
 		delete[] biasGradientTensor;
-	}
-
-	void InitParams()
-	{
-		memset(weightTensor, 0, sizeof(float) * inputSize * inputSize);
-		memset(biasTensor, 0, sizeof(float) * inputSize);
-		
-		memset(weightGradientTensor, 0, sizeof(float) * inputSize * inputSize);
-		memset(biasGradientTensor, 0, sizeof(float) * inputSize);
 	}
 
 	virtual void ZeroForward() override

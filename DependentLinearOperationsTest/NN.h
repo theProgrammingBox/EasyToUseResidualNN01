@@ -1,6 +1,5 @@
 #pragma once
 #include "Layer.h"
-#include "ResidualLinearReluLayer.h"
 
 struct NN
 {

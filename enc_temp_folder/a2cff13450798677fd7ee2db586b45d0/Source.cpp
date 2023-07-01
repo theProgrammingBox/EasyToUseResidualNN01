@@ -3,7 +3,6 @@
 
 /*
 TODO:
-- try smart pointers
 - allow custom sizes for layers and allow custom layers
 - allow layers to use other layers
 - layer norm
