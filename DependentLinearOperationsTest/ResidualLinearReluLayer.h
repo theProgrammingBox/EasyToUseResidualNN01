@@ -1,132 +1,148 @@
 #pragma once
-#include "Layer.h"
+#include "Header.h"
 
-struct ResidualLinearReluLayer : Layer
+struct ResidualLinearReluLayer
 {
-	float* weightTensor;
-	float* biasTensor;
-	float* productTensor;
-	
-	float* productGradientTensor;
-	float* weightGradientTensor;
-	float* biasGradientTensor;
+	static const int size = 16;
 
-	ResidualLinearReluLayer(int inputSize)
-		: Layer(inputSize, inputSize)
+	float inputTensor[size];
+	float weightTensor[size * size];
+	float biasTensor[size];
+	float productTensor[size];
+	float residualSumTensor[size];
+
+	float residualSumGradientTensor[size];
+	float productGradientTensor[size];
+	float weightGradientTensor[size * size];
+	float biasGradientTensor[size];
+	float inputGradientTensor[size];
+
+	ResidualLinearReluLayer()
 	{
-		weightTensor = new float[inputSize];
-		biasTensor = new float[inputSize];
-		productTensor = new float[inputSize];
-
-		productGradientTensor = new float[inputSize];
-		weightGradientTensor = new float[inputSize];
-		biasGradientTensor = new float[inputSize];
-		
-		memset(weightTensor, 0, sizeof(float) * inputSize * inputSize);
-		memset(biasTensor, 0, sizeof(float) * inputSize);
-		memset(weightGradientTensor, 0, sizeof(float) * inputSize * inputSize);
-		memset(biasGradientTensor, 0, sizeof(float) * inputSize);
+		InitParams();
 	}
 
-	virtual ~ResidualLinearReluLayer() override
+	void InitParams()
 	{
-		delete[] weightTensor;
-		delete[] biasTensor;
-		delete[] productTensor;
+		memset(weightTensor, 0, sizeof(float) * size * size);
+		memset(biasTensor, 0, sizeof(float) * size);
 
-		delete[] productGradientTensor;
-		delete[] weightGradientTensor;
-		delete[] biasGradientTensor;
+		memset(weightGradientTensor, 0, sizeof(float) * size * size);
+		memset(biasGradientTensor, 0, sizeof(float) * size);
 	}
 
-	virtual void ZeroForward() override
+	void ZeroForward()
 	{
-		memset(productTensor, 0, sizeof(float) * inputSize);
-		memset(outputTensor, 0, sizeof(float) * inputSize);
+		memset(inputTensor, 0, sizeof(float) * size);
+		memset(productTensor, 0, sizeof(float) * size);
+		memset(residualSumTensor, 0, sizeof(float) * size);
 	}
 
-	virtual void ZeroBackward() override
+	void ZeroBackward()
 	{
-		memset(productGradientTensor, 0, sizeof(float) * inputSize);
-		memset(inputGradientTensor, 0, sizeof(float) * inputSize);
+		memset(residualSumGradientTensor, 0, sizeof(float) * size);
+		memset(productGradientTensor, 0, sizeof(float) * size);
+		memset(inputGradientTensor, 0, sizeof(float) * size);
 	}
 
-	virtual void Forward(const float* inputTensor) override
+	void Update(float* learningRate)
+	{
+		cpuSaxpy(size, learningRate, biasGradientTensor, 1, biasTensor, 1);
+		cpuSaxpy(size * size, learningRate, weightGradientTensor, 1, weightTensor, 1);
+
+		memset(weightGradientTensor, 0, sizeof(float) * size * size);
+		memset(biasGradientTensor, 0, sizeof(float) * size);
+	}
+
+	float* GetInputTensor()
+	{
+		return inputTensor;
+	}
+
+	float* GetOutputTensor()
+	{
+		return residualSumTensor;
+	}
+
+	float* GetOutputGradientTensor()
+	{
+		return residualSumGradientTensor;
+	}
+
+	float* GetInputGradientTensor()
+	{
+		return inputGradientTensor;
+	}
+
+	void Forward()
 	{
 		cpuSgemmStridedBatched(
 			false, false,
-			inputSize, 1, inputSize,
+			size, 1, size,
 			&ONEF,
-			weightTensor, inputSize, inputSize * inputSize,
-			inputTensor, inputSize, inputSize,
+			weightTensor, size, size * size,
+			inputTensor, size, size,
 			&ONEF,
-			productTensor, inputSize, inputSize,
+			productTensor, size, size,
 			1);
-		cpuSaxpy(inputSize, &ONEF, biasTensor, 1, productTensor, 1);
+		cpuSaxpy(size, &ONEF, biasTensor, 1, productTensor, 1);
 
 		// residual
-		cpuSaxpy(inputSize, &ONEF, inputTensor, 1, outputTensor, 1);
-		cpuReluForward(inputSize, &ONEF, productTensor, &ONEF, outputTensor);
+		cpuSaxpy(size, &ONEF, inputTensor, 1, residualSumTensor, 1);
+		cpuReluForward(size, &ONEF, productTensor, &ONEF, residualSumTensor);
 	}
 
-	virtual void Backward(const float* outputTensor, const float* inputTensor) override
+	void Backward()
 	{
 		// residual
-		cpuSaxpy(inputSize, &ONEF, outputTensor, 1, inputGradientTensor, 1);
-		cpuReluBackward(inputSize, &ONEF, outputTensor, productTensor, &ONEF, productGradientTensor);
+		cpuSaxpy(size, &ONEF, residualSumGradientTensor, 1, inputGradientTensor, 1);
+		cpuReluBackward(size, &ONEF, residualSumGradientTensor, productTensor, &ONEF, productGradientTensor);
 
-		cpuSaxpy(inputSize, &ONEF, productGradientTensor, 1, biasGradientTensor, 1);
+		cpuSaxpy(size, &ONEF, productGradientTensor, 1, biasGradientTensor, 1);
 		cpuSgemmStridedBatched(
 			false, true,
-			inputSize, inputSize, 1,
+			size, size, 1,
 			&ONEF,
-			productGradientTensor, inputSize, inputSize,
-			inputTensor, inputSize, inputSize,
+			productGradientTensor, size, size,
+			inputTensor, size, size,
 			&ONEF,
-			weightGradientTensor, inputSize, inputSize * inputSize,
+			weightGradientTensor, size, size * size,
 			1);
 		cpuSgemmStridedBatched(
 			true, false,
-			inputSize, 1, inputSize,
+			size, 1, size,
 			&ONEF,
-			weightTensor, inputSize, inputSize * inputSize,
-			productGradientTensor, inputSize, inputSize,
+			weightTensor, size, size * size,
+			productGradientTensor, size, size,
 			&ONEF,
-			inputGradientTensor, inputSize, inputSize,
+			inputGradientTensor, size, size,
 			1);
 	}
 
-	virtual void Update(const float* learningRate) override
+	void PrintForward()
 	{
-		cpuSaxpy(inputSize, learningRate, biasGradientTensor, 1, biasTensor, 1);
-		cpuSaxpy(inputSize * inputSize, learningRate, weightGradientTensor, 1, weightTensor, 1);
-
-		memset(weightGradientTensor, 0, sizeof(float) * inputSize * inputSize);
-		memset(biasGradientTensor, 0, sizeof(float) * inputSize);
-	}
-
-	virtual void PrintForward() const override
-	{
-		PrintMatrixf32(weightTensor, inputSize, inputSize, "Weight Tensor");
-		PrintMatrixf32(biasTensor, 1, inputSize, "Bias Tensor");
-		PrintMatrixf32(productTensor, 1, inputSize, "Product Tensor");
-		PrintMatrixf32(outputTensor, 1, inputSize, "Residual Sum Tensor");
+		PrintMatrixf32(inputTensor, 1, size, "Input Tensor");
+		PrintMatrixf32(weightTensor, size, size, "Weight Tensor");
+		PrintMatrixf32(biasTensor, 1, size, "Bias Tensor");
+		PrintMatrixf32(productTensor, 1, size, "Output Tensor");
+		PrintMatrixf32(residualSumTensor, 1, size, "Residual Sum Tensor");
 		printf("\n");
 	}
 
-	virtual void PrintBackward() const override
+	void PrintBackward()
 	{
-		PrintMatrixf32(productGradientTensor, 1, inputSize, "Product Gradient Tensor");
-		PrintMatrixf32(weightGradientTensor, inputSize, inputSize, "Weight Gradient Tensor");
-		PrintMatrixf32(biasGradientTensor, 1, inputSize, "Bias Gradient Tensor");
-		PrintMatrixf32(inputGradientTensor, 1, inputSize, "Input Gradient Tensor");
+		PrintMatrixf32(residualSumGradientTensor, 1, size, "Residual Sum Gradient Tensor");
+		PrintMatrixf32(productGradientTensor, 1, size, "Output Gradient Tensor");
+		PrintMatrixf32(weightGradientTensor, size, size, "Weight Gradient Tensor");
+		PrintMatrixf32(biasGradientTensor, 1, size, "Bias Gradient Tensor");
+		PrintMatrixf32(inputGradientTensor, 1, size, "Input Gradient Tensor");
 		printf("\n");
 	}
 
-	virtual void PrintParams() const override
+	void PrintParams()
 	{
-		PrintMatrixf32(weightTensor, inputSize, inputSize, "Weight Tensor");
-		PrintMatrixf32(biasTensor, 1, inputSize, "Bias Tensor");
+		PrintMatrixf32(weightTensor, size, size, "Weight Tensor");
+		PrintMatrixf32(biasTensor, 1, size, "Bias Tensor");
 		printf("\n");
 	}
 };

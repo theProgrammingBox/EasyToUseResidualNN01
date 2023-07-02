@@ -1,81 +1,103 @@
 #pragma once
-#include "Layer.h"
+#include "ResidualLinearReluLayer.h"
 
 struct NN
 {
-	int inputSize;
-	
-	std::vector<Layer*> layers;
+	std::vector<ResidualLinearReluLayer> layers;
 
-	NN(int inputSize)
-		: inputSize(inputSize)
+	float inputTensor[ResidualLinearReluLayer::size];
+	float outputTensor[ResidualLinearReluLayer::size];
+
+	float productGradientTensor[ResidualLinearReluLayer::size];
+	float inputGradientTensor[ResidualLinearReluLayer::size];
+
+	NN(int layersCount)
 	{
+		layers.resize(layersCount);
 	}
 
-	~NN()
+	void ZeroForward()
 	{
-		for (Layer* layer : layers)
-			delete layer;
+		for (int i = 0; i < layers.size(); ++i)
+			layers[i].ZeroForward();
 	}
 
-	void AddLayer(Layer* layer)
+	void ZeroBackward()
 	{
-		layers.emplace_back(layer);
-	}
-
-	void Forward(const float* inputTensor)
-	{
-		for (Layer* layer : layers)
-			layer->ZeroForward();
-		
-		layers.front()->Forward(inputTensor);
-		for (int i = 1; i < layers.size(); ++i)
-			layers[i]->Forward(layers[i - 1]->outputTensor);
-	}
-
-	void Backward(float* outputGradientTensor, const float* inputTensor)
-	{
-		cpuSaxpy(layers.back()->outputSize, &MINUS_ONEF, layers.back()->outputTensor, 1, outputGradientTensor, 1);
-		
-		for (Layer* layer : layers)
-			layer->ZeroBackward();
-
-		if (layers.size() >= 2)
-		{
-			layers.back()->Backward(outputGradientTensor, layers[layers.size() - 2]->outputTensor);
-			for (int i = layers.size() - 2; i > 0; --i)
-				layers[i]->Backward(layers[i + 1]->inputGradientTensor, layers[i - 1]->outputTensor);
-			layers.front()->Backward(layers[1]->inputGradientTensor, inputTensor);
-		}
-		else
-		{
-			layers.front()->Backward(outputGradientTensor, inputTensor);
-		}
+		for (int i = 0; i < layers.size(); ++i)
+			layers[i].ZeroBackward();
 	}
 
 	void Update(float* learningRate)
 	{
-		for (Layer* layer : layers)
-			layer->Update(learningRate);
+		for (int i = 0; i < layers.size(); ++i)
+			layers[i].Update(learningRate);
 	}
 
-	void PrintForward(float* inputTensor)
+	float* GetInputTensor()
 	{
-		PrintMatrixf32(inputTensor, 1, inputSize, "Input Tensor");
-		for (Layer* layer : layers)
-			layer->PrintForward();
+		return inputTensor;
 	}
 
-	void PrintBackward(float* outputGradientTensor)
+	float* GetOutputTensor()
 	{
-		PrintMatrixf32(outputGradientTensor, 1, layers.back()->outputSize, "Output Gradient Tensor");
-		for (Layer* layer : layers)
-			layer->PrintBackward();
+		return outputTensor;
+	}
+
+	float* GetOutputGradientTensor()
+	{
+		return productGradientTensor;
+	}
+
+	float* GetInputGradientTensor()
+	{
+		return inputGradientTensor;
+	}
+
+	void Forward()
+	{
+		ZeroForward();
+
+		memcpy(layers.front().GetInputTensor(), GetInputTensor(), sizeof(float) * ResidualLinearReluLayer::size);
+		for (int i = 0; i < layers.size() - 1; ++i)
+		{
+			layers[i].Forward();
+			memcpy(layers[i + 1].GetInputTensor(), layers[i].GetOutputTensor(), sizeof(float) * ResidualLinearReluLayer::size);
+		}
+		layers.back().Forward();
+		memcpy(GetOutputTensor(), layers.back().GetOutputTensor(), sizeof(float) * ResidualLinearReluLayer::size);
+	}
+
+	void Backward()
+	{
+		cpuSaxpy(ResidualLinearReluLayer::size, &MINUS_ONEF, GetOutputTensor(), 1, GetOutputGradientTensor(), 1);
+		ZeroBackward();
+
+		memcpy(layers.back().GetOutputGradientTensor(), GetOutputGradientTensor(), sizeof(float) * ResidualLinearReluLayer::size);
+		layers.back().Backward();
+		for (int i = layers.size() - 2; i >= 0; --i)
+		{
+			memcpy(layers[i].GetOutputGradientTensor(), layers[i + 1].GetInputGradientTensor(), sizeof(float) * ResidualLinearReluLayer::size);
+			layers[i].Backward();
+		}
+		memcpy(GetInputGradientTensor(), layers.front().GetInputGradientTensor(), sizeof(float) * ResidualLinearReluLayer::size);
+	}
+
+	void PrintForward()
+	{
+		for (int i = 0; i < layers.size(); ++i)
+			layers[i].PrintForward();
+	}
+
+	void PrintBackward()
+	{
+		for (int i = 0; i < layers.size(); ++i)
+			layers[i].PrintBackward();
 	}
 
 	void PrintParams()
 	{
-		for (Layer* layer : layers)
-			layer->PrintParams();
+		for (int i = 0; i < layers.size(); ++i)
+			layers[i].PrintParams();
 	}
 };

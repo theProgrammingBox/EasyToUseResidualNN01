@@ -1,7 +1,6 @@
 #pragma once
 #include <iostream>
 #include <vector>
-#include <cassert>
 
 const float ONEF = 1.0f;
 const float MINUS_ONEF = -1.0f;
@@ -10,8 +9,8 @@ void cpuSgemmStridedBatched(
 	bool transB, bool transA,
 	int CCols, int CRows, int AColsBRows,
 	const float* alpha,
-	const float* B, int ColsB, int SizeB,
-	const float* A, int ColsA, int SizeA,
+	float* B, int ColsB, int SizeB,
+	float* A, int ColsA, int SizeA,
 	const float* beta,
 	float* C, int ColsC, int SizeC,
 	int batchCount)
@@ -71,7 +70,7 @@ void PrintMatrixf32(float* arr, uint32_t rows, uint32_t cols, const char* label)
 	for (uint32_t i = 0; i < rows; i++)
 	{
 		for (uint32_t j = 0; j < cols; j++)
-			printf("%8.4f ", arr[i * cols + j]);
+			printf("%6.3f ", arr[i * cols + j]);
 		printf("\n");
 	}
 	printf("\n");
